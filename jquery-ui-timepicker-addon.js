@@ -15,6 +15,19 @@
 * .ui-timepicker-div dl dt{ height: 25px; }
 * .ui-timepicker-div dl dd{ margin: -25px 0 10px 65px; }
 * .ui-timepicker-div td { font-size: 90%; }
+*
+*
+* ADD THIS FOR THE timepicker_with_days:
+*
+* .ui-datepicker-buttonpane{ display: none; }
+*
+* .ui-datepicker {
+*    width: 300px;
+*    padding: 8px 7px 8px;
+*    height: 55px;
+*    margin-top: 5px;
+*  }
+*
 */
 
 (function($) {
@@ -32,9 +45,10 @@ function Timepicker() {
 		currentText: 'Now',
 		closeText: 'Done',
 		ampm: false,
-		timeFormat: 'hh:mm tt',
+    timeFormat: 'hh:mm tt',
 		timeOnlyTitle: 'Choose Time',
 		timeText: 'Time',
+    dayText: 'Day',
 		hourText: 'Hour',
 		minuteText: 'Minute',
 		secondText: 'Second'
@@ -42,24 +56,31 @@ function Timepicker() {
 	this._defaults = { // Global defaults for all the datetime picker instances
 		showButtonPanel: true,
 		timeOnly: false,
+    showTitle: true,
+    showDay: false,
 		showHour: true,
 		showMinute: true,
 		showSecond: false,
 		showTime: true,
+    stepDay: 0.05,
 		stepHour: 0.05,
 		stepMinute: 0.05,
 		stepSecond: 0.05,
+    day: 0,
 		hour: 0,
 		minute: 0,
 		second: 0,
+    dayMin: 0,
 		hourMin: 0,
 		minuteMin: 0,
 		secondMin: 0,
+    dayMax: 20,
 		hourMax: 23,
 		minuteMax: 59,
 		secondMax: 59,
 		minDateTime: null,
-		maxDateTime: null,		
+		maxDateTime: null,
+    dayGrid: 0,
 		hourGrid: 0,
 		minuteGrid: 0,
 		secondGrid: 0,
@@ -76,15 +97,19 @@ $.extend(Timepicker.prototype, {
 	$altInput: null,
 	$timeObj: null,
 	inst: null,
+  day_slider: null,
 	hour_slider: null,
 	minute_slider: null,
 	second_slider: null,
+  day: 0,
 	hour: 0,
 	minute: 0,
 	second: 0,
+  dayMinOriginal: null,
 	hourMinOriginal: null,
 	minuteMinOriginal: null,
 	secondMinOriginal: null,
+  dayMaxOriginal: null,
 	hourMaxOriginal: null,
 	minuteMaxOriginal: null,
 	secondMaxOriginal: null,
@@ -108,6 +133,7 @@ $.extend(Timepicker.prototype, {
 		var tp_inst = new Timepicker(),
 			inlineSettings = {};
 
+    tp_inst.day = tp_inst._defaults.day;
 		tp_inst.hour = tp_inst._defaults.hour;
 		tp_inst.minute = tp_inst._defaults.minute;
 		tp_inst.second = tp_inst._defaults.second;
@@ -248,6 +274,7 @@ $.extend(Timepicker.prototype, {
 			// Added by Peter Medeiros:
 			// - Figure out what the hour/minute/second max should be based on the step values.
 			// - Example: if stepMinute is 15, then minMax is 45.
+      dayMax = (o.dayMax - (o.dayMax % o.stepDay)).toFixed(0),
 			hourMax = (o.hourMax - (o.hourMax % o.stepHour)).toFixed(0),
 			minMax  = (o.minuteMax - (o.minuteMax % o.stepMinute)).toFixed(0),
 			secMax  = (o.secondMax - (o.secondMax % o.stepSecond)).toFixed(0),
@@ -262,13 +289,33 @@ $.extend(Timepicker.prototype, {
 						((o.showTime) ? '' : noDisplay) + '>' + o.timeText + '</dt>' +
 						'<dd class="ui_tpicker_time" id="ui_tpicker_time_' + dp_id + '"' +
 						((o.showTime) ? '' : noDisplay) + '></dd>' +
-						'<dt class="ui_tpicker_hour_label" id="ui_tpicker_hour_label_' + dp_id + '"' +
-						((o.showHour) ? '' : noDisplay) + '>' + o.hourText + '</dt>',
+						'<dt class="ui_tpicker_day_label" id="ui_tpicker_day_label_' + dp_id + '"' +
+						((o.showDay) ? '' : noDisplay) + '>' + o.dayText + '</dt>',
+        dayGridSize = 0,
 				hourGridSize = 0,
 				minuteGridSize = 0,
 				secondGridSize = 0,
 				size;
- 
+
+      if (o.showDay && o.dayGrid > 0) {
+				html += '<dd class="ui_tpicker_day">' +
+						'<div id="ui_tpicker_day_' + dp_id + '"' + ((o.showDay)   ? '' : noDisplay) + '></div>' +
+						'<div style="padding-left: 1px"><table><tr>';
+
+				for (var h = o.dayMin; h < hourMax; h += o.dayGrid) {
+					dayGridSize++;
+					html += '<td>' + h + '</td>';
+				}
+
+				html += '</tr></table></div>' +
+						'</dd>';
+			} else html += '<dd class="ui_tpicker_day" id="ui_tpicker_day_' + dp_id + '"' +
+							((o.showDay) ? '' : noDisplay) + '></dd>';
+
+
+      html += '<dt class="ui_tpicker_hour_label" id="ui_tpicker_hour_label_' + dp_id + '"' +
+						((o.showHour) ? '' : noDisplay) + '>' + o.hourText + '</dt>';
+
 			if (o.showHour && o.hourGrid > 0) {
 				html += '<dd class="ui_tpicker_hour">' +
 						'<div id="ui_tpicker_hour_' + dp_id + '"' + ((o.showHour)   ? '' : noDisplay) + '></div>' +
@@ -334,16 +381,29 @@ $.extend(Timepicker.prototype, {
 
 				// if we only want time picker...
 			if (o.timeOnly === true) {
-				$tp.prepend(
-					'<div class="ui-widget-header ui-helper-clearfix ui-corner-all">' +
-						'<div class="ui-datepicker-title">' + o.timeOnlyTitle + '</div>' +
-					'</div>');
+        if( o.showTitle )
+          $tp.prepend(
+            '<div class="ui-widget-header ui-helper-clearfix ui-corner-all">' +
+              '<div class="ui-datepicker-title">' + o.timeOnlyTitle + '</div>' +
+            '</div>');
 				$dp.find('.ui-datepicker-header, .ui-datepicker-calendar').hide();
 			}
 
+      this.day_slider = $tp.find('#ui_tpicker_day_'+ dp_id).slider({
+				orientation: "horizontal",
+				value: o.day,
+				min: o.dayMin,
+				max: dayMax,
+				step: o.stepDay,
+				slide: function(event, ui) {
+					tp_inst.day_slider.slider( "option", "value", ui.value);
+					tp_inst._onTimeChange();
+				}
+			});
+
 			this.hour_slider = $tp.find('#ui_tpicker_hour_'+ dp_id).slider({
 				orientation: "horizontal",
-				value: this.hour,
+				value: o.hour,
 				min: o.hourMin,
 				max: hourMax,
 				step: o.stepHour,
@@ -357,7 +417,7 @@ $.extend(Timepicker.prototype, {
 			// - Pass in Event and UI instance into slide function
 			this.minute_slider = $tp.find('#ui_tpicker_minute_'+ dp_id).slider({
 				orientation: "horizontal",
-				value: this.minute,
+				value: o.minute,
 				min: o.minuteMin,
 				max: minMax,
 				step: o.stepMinute,
@@ -379,6 +439,25 @@ $.extend(Timepicker.prototype, {
 					tp_inst._onTimeChange();
 				}
 			});
+
+			if (o.showDay && o.dayGrid > 0) {
+				size = 100 * dayGridSize * o.dayGrid / (minMax - o.dayMin);
+				$tp.find(".ui_tpicker_day table").css({
+					width: size + "%",
+					marginLeft: (size / (-2 * dayGridSize)) + "%",
+					borderCollapse: 'collapse'
+				}).find("td").each(function(index) {
+					$(this).click(function() {
+						tp_inst.day_slider.slider("option", "value", $(this).html());
+						tp_inst._onTimeChange();
+					}).css({
+						cursor: 'pointer',
+						width: (100 / dayGridSize) + '%',
+						textAlign: 'center',
+						overflow: 'hidden'
+					});
+				});
+			}
 
 			// Add grid functionality
 			if (o.showHour && o.hourGrid > 0) {
@@ -467,6 +546,7 @@ $.extend(Timepicker.prototype, {
 				var onSelectHandler = function() {
 					onSelect.apply(inputEl, [tp_inst.formattedDateTime, tp_inst]); // trigger custom callback*/
 				}
+        this.day_slider.bind('slidestop',onSelectHandler);
 				this.hour_slider.bind('slidestop',onSelectHandler);		
 				this.minute_slider.bind('slidestop',onSelectHandler);		
 				this.second_slider.bind('slidestop',onSelectHandler);		
@@ -546,10 +626,12 @@ $.extend(Timepicker.prototype, {
 	// on time change is also called when the time is updated in the text field
 	//########################################################################
 	_onTimeChange: function() {
-		var hour   = (this.hour_slider) ? this.hour_slider.slider('value') : false,
+		var day   = (this.day_slider) ? this.day_slider.slider('value') : false,
+      hour   = (this.hour_slider) ? this.hour_slider.slider('value') : false,
 			minute = (this.minute_slider) ? this.minute_slider.slider('value') : false,
 			second = (this.second_slider) ? this.second_slider.slider('value') : false;
 
+    if (day !== false) day = parseInt(day,10);
 		if (hour !== false) hour = parseInt(hour,10);
 		if (minute !== false) minute = parseInt(minute,10);
 		if (second !== false) second = parseInt(second,10);
@@ -558,10 +640,10 @@ $.extend(Timepicker.prototype, {
 			
 		// If the update was done in the input field, the input field should not be updated.
 		// If the update was done using the sliders, update the input field.
-		var hasChanged = (hour != this.hour || minute != this.minute || second != this.second || (this.ampm.length > 0 && this.ampm != ampm));
+		var hasChanged = (day != this.day || hour != this.hour || minute != this.minute || second != this.second || (this.ampm.length > 0 && this.ampm != ampm));
 		
 		if (hasChanged) {
-
+      if (day !== false)this.day = day;
 			if (hour !== false)this.hour = hour;
 			if (minute !== false) this.minute = minute;
 			if (second !== false) this.second = second;
@@ -579,13 +661,14 @@ $.extend(Timepicker.prototype, {
 	//########################################################################
 	_formatTime: function(time, format, ampm) {
 		if (ampm == undefined) ampm = this._defaults.ampm;
-		time = time || { hour: this.hour, minute: this.minute, second: this.second, ampm: this.ampm };
+		time = time || { day: this.day, hour: this.hour, minute: this.minute, second: this.second, ampm: this.ampm };
 		var tmptime = format || this._defaults.timeFormat.toString();
 
 		if (ampm) {
 			var hour12 = ((time.ampm == 'AM') ? (time.hour) : (time.hour % 12));
 			hour12 = (Number(hour12) === 0) ? 12 : hour12;
 			tmptime = tmptime.toString()
+        .replace(/dd/g, time.day)
 				.replace(/hh/g, ((hour12 < 10) ? '0' : '') + hour12)
 				.replace(/h/g, hour12)
 				.replace(/mm/g, ((time.minute < 10) ? '0' : '') + time.minute)
@@ -598,6 +681,7 @@ $.extend(Timepicker.prototype, {
 				.replace(/t/g, time.ampm.charAt(0).toLowerCase());
 		} else {
 			tmptime = tmptime.toString()
+        .replace(/dd/g, time.day)
 				.replace(/hh/g, ((time.hour < 10) ? '0' : '') + time.hour)
 				.replace(/h/g, time.hour)
 				.replace(/mm/g, ((time.minute < 10) ? '0' : '') + time.minute)
@@ -659,6 +743,20 @@ $.fn.extend({
 		var tmp_args = arguments;
 
 		if (typeof o == 'object') tmp_args[0] = $.extend(o, { timeOnly: true });
+
+		return $(this).each(function() {
+			$.fn.datetimepicker.apply($(this), tmp_args);
+		});
+	},
+
+  //########################################################################
+	// shorthand just to use timepicker_with_hours..
+	//########################################################################
+	timepicker_with_days: function(o) {
+		o = o || {};
+		var tmp_args = arguments;
+
+		if (typeof o == 'object') tmp_args[0] = $.extend(o, { timeFormat: 'dd:hh:mm', timeOnly: true, showDay: true, showTime: false, showTitle: false });
 
 		return $(this).each(function() {
 			$.fn.datetimepicker.apply($(this), tmp_args);
