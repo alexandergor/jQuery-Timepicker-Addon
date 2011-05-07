@@ -3,3 +3,14 @@ jQuery Timepicker Addon
 -To use this plugin you must include jQuery and jQuery UI with datepicker and slider
 -Include timepicker-addon script
 -now use timepicker with $('#selector').datetimepicker() or $('#selector').timepicker()
+
+-To get a days - hours - minutes duration picker do $('#selector').timepicker_with_days() and add this CSS:
+
+ .ui-datepicker-buttonpane{ display: none; }
+
+ .ui-datepicker {
+    width: 300px;
+    padding: 8px 7px 8px;
+    height: 55px;
+    margin-top: 5px;
+  }
