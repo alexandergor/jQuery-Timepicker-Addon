@@ -764,6 +764,22 @@ $.fn.extend({
 			$.fn.datetimepicker.apply($(this), tmp_args);
 		});
 	},
+	
+	  //########################################################################
+	// shorthand just to use timepicker_with_hours..
+	//########################################################################
+	timepicker_with_days2: function(o) {
+		o = o || {};
+		var tmp_args = arguments;
+
+		if (typeof o == 'object') tmp_args[0] = $.extend(o, { timeFormat: 'ddd hh:mm:ss', showSecond: true, timeOnly: true, showDay: true,
+                                                          showTime: false, showTitle: false, dayText: 'Days',
+		                                                      hourText: 'Hours', minuteText: 'Minutes' });
+
+		return $(this).each(function() {
+			$.fn.datetimepicker.apply($(this), tmp_args);
+		});
+	},
 
 	//########################################################################
 	// extend timepicker to datepicker
